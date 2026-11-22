@@ -1,0 +1,28 @@
+# Python / simulator
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# Generated simulation artefacts (kept in results/ by deliberate commit)
+# simulator/results/raw/ is transient
+simulator/results/raw/
+
+# Arduino / PlatformIO
+.pio/
+.pioenvs/
+.build/
+*.elf
+*.bin
+*.hex
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.vscode/
+.idea/
+
+# Local secrets (WiFi passwords etc.)
+secrets.h

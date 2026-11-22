@@ -1,0 +1,1947 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ESP32 DTN Data Mule Node Simulator</title>
+  <style>
+    :root {
+      --bg-app: #090d16;
+      --bg-panel: #111827;
+      --bg-panel-2: #0d1320;
+      --bg-elevated: #182234;
+      --border: #1f2d43;
+      --border-strong: #2d405e;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --accent-cyan: #22d3ee;
+      --accent-emerald: #10b981;
+      --accent-amber: #f59e0b;
+      --accent-rose: #f43f5e;
+      --accent-blue: #3b82f6;
+      --accent-violet: #a855f7;
+      --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      --radius: 12px;
+      --radius-sm: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--bg-app);
+      color: var(--text-main);
+      min-height: 100vh;
+      line-height: 1.45;
+      overflow-x: hidden;
+    }
+
+    .mono {
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Top Bar */
+    .topbar {
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .topbar-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-badge {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: rgba(34, 211, 238, 0.12);
+      border: 1px solid rgba(34, 211, 238, 0.35);
+      display: grid;
+      place-items: center;
+      font-size: 18px;
+    }
+
+    .brand h1 {
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+
+    .brand p {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .controls-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .control-group {
+      background: var(--bg-panel-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 6px 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.78rem;
+    }
+
+    .control-group label {
+      color: var(--text-muted);
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    select, input[type="range"] {
+      background: var(--bg-elevated);
+      color: var(--text-main);
+      border: 1px solid var(--border-strong);
+      border-radius: 6px;
+      font-size: 0.78rem;
+      padding: 4px 8px;
+      outline: none;
+    }
+
+    select:focus, input[type="range"]:focus {
+      border-color: var(--accent-cyan);
+    }
+
+    input[type="range"] {
+      padding: 0;
+      width: 92px;
+      accent-color: var(--accent-cyan);
+      cursor: pointer;
+    }
+
+    button {
+      font-family: var(--font-sans);
+      font-size: 0.78rem;
+      font-weight: 600;
+      border-radius: var(--radius-sm);
+      padding: 7px 11px;
+      border: 1px solid var(--border-strong);
+      background: var(--bg-elevated);
+      color: var(--text-main);
+      cursor: pointer;
+      transition: transform 0.08s ease, background 0.15s ease, border-color 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    button:hover {
+      background: #223049;
+      border-color: #3d557c;
+    }
+
+    button:active {
+      transform: scale(0.98);
+    }
+
+    button.btn-primary {
+      background: rgba(34, 211, 238, 0.16);
+      border-color: rgba(34, 211, 238, 0.45);
+      color: var(--accent-cyan);
+    }
+
+    button.btn-primary:hover {
+      background: rgba(34, 211, 238, 0.25);
+    }
+
+    button.btn-warn {
+      background: rgba(245, 158, 11, 0.15);
+      border-color: rgba(245, 158, 11, 0.45);
+      color: #fbbf24;
+    }
+
+    button.btn-warn:hover {
+      background: rgba(245, 158, 11, 0.25);
+    }
+
+    button.btn-danger {
+      background: rgba(244, 63, 94, 0.14);
+      border-color: rgba(244, 63, 94, 0.4);
+      color: #fda4af;
+    }
+
+    /* KPI Strip */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+
+    @media (min-width: 768px) {
+      .kpi-grid {
+        grid-template-columns: repeat(5, 1fr);
+      }
+    }
+
+    .kpi-card {
+      background: var(--bg-panel-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 8px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .kpi-label {
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-dim);
+      font-weight: 600;
+    }
+
+    .kpi-value {
+      font-size: 0.96rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .kpi-sub {
+      font-size: 0.68rem;
+      color: var(--text-muted);
+    }
+
+    /* Main Content Layout */
+    .main-layout {
+      padding: 14px 16px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      max-width: 1680px;
+      margin: 0 auto;
+    }
+
+    .panel {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .panel-header {
+      padding: 10px 14px;
+      background: var(--bg-panel-2);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .panel-title {
+      font-size: 0.84rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Corridor Canvas Section */
+    .corridor-wrap {
+      position: relative;
+      width: 100%;
+      height: 310px;
+      background: #070b13;
+    }
+
+    @media (min-width: 900px) {
+      .corridor-wrap {
+        height: 330px;
+      }
+    }
+
+    canvas#corridor-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .node-queues-bar {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+      padding: 12px 14px;
+      border-top: 1px solid var(--border);
+      background: var(--bg-panel-2);
+    }
+
+    @media (min-width: 900px) {
+      .node-queues-bar {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+
+    .node-box {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 9px 11px;
+    }
+
+    .node-box-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+
+    .pkt-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      max-height: 54px;
+      overflow-y: auto;
+    }
+
+    .pkt-chip {
+      font-size: 0.65rem;
+      padding: 2px 6px;
+      border-radius: 5px;
+      font-weight: 600;
+      border: 1px solid transparent;
+    }
+
+    .p0 {
+      background: rgba(244, 63, 94, 0.16);
+      color: #fda4af;
+      border-color: rgba(244, 63, 94, 0.45);
+    }
+
+    .p1 {
+      background: rgba(59, 130, 246, 0.16);
+      color: #93c5fd;
+      border-color: rgba(59, 130, 246, 0.45);
+    }
+
+    .p2 {
+      background: rgba(148, 163, 184, 0.14);
+      color: #cbd5e1;
+      border-color: rgba(148, 163, 184, 0.3);
+    }
+
+    /* Bottom Split Grid: Handshake + Flash/Logs/Code */
+    .bottom-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 14px;
+    }
+
+    @media (min-width: 1120px) {
+      .bottom-grid {
+        grid-template-columns: 5fr 7fr;
+      }
+    }
+
+    /* Handshake State Machine */
+    .handshake-body {
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .state-pill {
+      font-size: 0.72rem;
+      padding: 3px 9px;
+      border-radius: 999px;
+      font-weight: 700;
+      background: rgba(34, 211, 238, 0.14);
+      color: var(--accent-cyan);
+      border: 1px solid rgba(34, 211, 238, 0.35);
+    }
+
+    .handshake-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+
+    .hs-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--bg-panel-2);
+      transition: border-color 0.2s, background 0.2s;
+    }
+
+    .hs-step.active {
+      border-color: var(--accent-cyan);
+      background: rgba(34, 211, 238, 0.08);
+    }
+
+    .hs-step.done {
+      border-color: rgba(16, 185, 129, 0.35);
+      background: rgba(16, 185, 129, 0.05);
+    }
+
+    .hs-num {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      font-size: 0.68rem;
+      font-weight: 700;
+      background: var(--bg-elevated);
+      color: var(--text-muted);
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .hs-step.active .hs-num {
+      background: var(--accent-cyan);
+      color: #06202a;
+    }
+
+    .hs-step.done .hs-num {
+      background: var(--accent-emerald);
+      color: #042016;
+    }
+
+    .hs-title {
+      font-size: 0.76rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .hs-desc {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      margin-top: 1px;
+    }
+
+    .handshake-frame-box {
+      background: #070b13;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 10px;
+      font-size: 0.71rem;
+      color: #bae6fd;
+      white-space: pre-wrap;
+      max-height: 130px;
+      overflow-y: auto;
+    }
+
+    /* Tabs on Right Inspector */
+    .tabs {
+      display: flex;
+      gap: 4px;
+    }
+
+    .tab-btn {
+      padding: 5px 10px;
+      font-size: 0.73rem;
+      border-radius: 7px;
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-muted);
+    }
+
+    .tab-btn.active {
+      background: var(--bg-elevated);
+      border-color: var(--border-strong);
+      color: var(--accent-cyan);
+    }
+
+    .tab-pane {
+      display: none;
+      padding: 14px;
+    }
+
+    .tab-pane.active {
+      display: block;
+    }
+
+    /* Flash Memory Grid */
+    .flash-meta {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 10px;
+      font-size: 0.74rem;
+      color: var(--text-muted);
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      font-size: 0.7rem;
+    }
+
+    .legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .swatch {
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+      display: inline-block;
+    }
+
+    .flash-grid {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 6px;
+      margin-bottom: 14px;
+    }
+
+    @media (min-width: 640px) {
+      .flash-grid {
+        grid-template-columns: repeat(16, 1fr);
+      }
+    }
+
+    .flash-slot {
+      aspect-ratio: 1 / 1;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: #0a101d;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.62rem;
+      font-weight: 700;
+      position: relative;
+      transition: transform 0.12s ease;
+    }
+
+    .flash-slot.slot-p0 {
+      background: rgba(244, 63, 94, 0.22);
+      border-color: rgba(244, 63, 94, 0.7);
+      color: #fecdd3;
+    }
+
+    .flash-slot.slot-p1 {
+      background: rgba(59, 130, 246, 0.22);
+      border-color: rgba(59, 130, 246, 0.7);
+      color: #bfdbfe;
+    }
+
+    .flash-slot.slot-p2 {
+      background: rgba(148, 163, 184, 0.18);
+      border-color: rgba(148, 163, 184, 0.5);
+      color: #e2e8f0;
+    }
+
+    .flash-slot small {
+      font-size: 0.52rem;
+      opacity: 0.75;
+      font-weight: 500;
+    }
+
+    /* Event Log */
+    .log-box {
+      background: #070b13;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 10px;
+      height: 210px;
+      overflow-y: auto;
+      font-size: 0.72rem;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .log-line {
+      padding: 3px 6px;
+      border-radius: 4px;
+      border-left: 2px solid var(--border-strong);
+    }
+
+    .log-tx {
+      border-left-color: var(--accent-emerald);
+      color: #a7f3d0;
+    }
+
+    .log-evict {
+      border-left-color: var(--accent-rose);
+      color: #fecdd3;
+      background: rgba(244, 63, 94, 0.06);
+    }
+
+    .log-hs {
+      border-left-color: var(--accent-cyan);
+      color: #a5f3fc;
+    }
+
+    .log-sink {
+      border-left-color: var(--accent-amber);
+      color: #fde68a;
+    }
+
+    /* Code Block */
+    .code-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      font-size: 0.74rem;
+      color: var(--text-muted);
+    }
+
+    pre.cpp-code {
+      background: #070b13;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px;
+      font-size: 0.72rem;
+      line-height: 1.5;
+      color: #e2e8f0;
+      overflow: auto;
+      max-height: 360px;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 16px;
+      right: 16px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--accent-cyan);
+      color: var(--text-main);
+      padding: 8px 14px;
+      border-radius: var(--radius-sm);
+      font-size: 0.76rem;
+      font-weight: 600;
+      z-index: 999;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 0.2s, transform 0.2s;
+      pointer-events: none;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+  <!-- 1. TOP TELEMETRY & POLICY CONTROL BAR -->
+  <header class="topbar">
+    <div class="topbar-head">
+      <div class="brand">
+        <div class="brand-badge" aria-hidden="true">🚗</div>
+        <div>
+          <h1>ESP32 DTN Data Mule Node Simulator</h1>
+          <p>Delay-Tolerant Networking • Dynamic Wi-Fi Handshake • Flash Buffer Eviction Policies</p>
+        </div>
+      </div>
+
+      <div class="controls-row">
+        <div class="control-group">
+          <label for="policy-select">Buffer Policy</label>
+          <select id="policy-select">
+            <option value="priority-preemptive">Priority-Preemptive (Evict Lowest Prio / HoL High-Prio)</option>
+            <option value="edf-prio">Deadline &amp; Priority Weighted (EDF + Prio)</option>
+            <option value="fifo">FIFO (Baseline)</option>
+          </select>
+        </div>
+
+        <div class="control-group">
+          <label for="speed-slider">Mule Speed / Pass</label>
+          <input id="speed-slider" type="range" min="25" max="200" value="85" />
+          <span id="speed-label" class="mono">0.85x</span>
+        </div>
+
+        <div class="control-group">
+          <label for="flash-cap-slider">Flash Slots</label>
+          <input id="flash-cap-slider" type="range" min="16" max="64" step="8" value="32" />
+          <span id="flash-cap-label" class="mono">32</span>
+        </div>
+
+        <button id="burst-btn" class="btn-warn" title="Inject high & low priority burst packets across field nodes">
+          ⚡ Burst / Low-Prio Flood
+        </button>
+        <button id="trigger-pass-btn" class="btn-primary" title="Move mule directly into next active field node pass">
+          📡 Trigger Mule Pass Now
+        </button>
+        <button id="pause-btn" title="Pause or resume simulation">⏸ Pause</button>
+        <button id="reset-btn" class="btn-danger" title="Reset nodes, mule flash, and KPIs">↺ Reset</button>
+      </div>
+    </div>
+
+    <!-- Live KPI Counters -->
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <span class="kpi-label">High-Prio (P0) Delivery Rate</span>
+        <span id="kpi-p0-rate" class="kpi-value mono" style="color: var(--accent-emerald);">100.0%</span>
+        <span id="kpi-p0-detail" class="kpi-sub mono">0 delivered / 0 generated</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">Total Packets Delivered (Sink)</span>
+        <span id="kpi-delivered" class="kpi-value mono" style="color: var(--accent-cyan);">0</span>
+        <span id="kpi-bytes" class="kpi-sub mono">0.0 KB offloaded</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">Packets Dropped / Evicted</span>
+        <span id="kpi-dropped" class="kpi-value mono" style="color: var(--accent-rose);">0</span>
+        <span id="kpi-drop-detail" class="kpi-sub mono">0 evicted • 0 TTL expired</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">Mule Flash Used</span>
+        <span id="kpi-flash" class="kpi-value mono" style="color: var(--accent-amber);">0.0%</span>
+        <span id="kpi-flash-detail" class="kpi-sub mono">0 / 32 slots • 0 erases</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">Active Link RSSI &amp; Window</span>
+        <span id="kpi-link" class="kpi-value mono">-88 dBm • 0 ms</span>
+        <span id="kpi-link-state" class="kpi-sub mono">OUT_OF_RANGE</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="main-layout">
+    <!-- 2. INTERACTIVE FIELD CORRIDOR & MULE ANIMATION CANVAS -->
+    <section class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span>🗺️ Field Sensor Corridor &amp; Mobile ESP32 Mule</span>
+        </div>
+        <div class="mono" style="font-size: 0.72rem; color: var(--text-muted);">
+          <span class="pkt-chip p0">P0 CRIT</span>
+          <span class="pkt-chip p1">P1 WARN</span>
+          <span class="pkt-chip p2">P2 LOG</span>
+          <span style="margin-left: 8px;">Click any field node to inject a P0 critical alert!</span>
+        </div>
+      </div>
+
+      <div class="corridor-wrap">
+        <canvas id="corridor-canvas"></canvas>
+      </div>
+
+      <!-- Field Node Outbox Queues -->
+      <div id="node-queues-bar" class="node-queues-bar"></div>
+    </section>
+
+    <!-- 3. DYNAMIC HANDSHAKE PROTOCOL & FLASH / LOGS / CODE INSPECTOR -->
+    <section class="bottom-grid">
+      <!-- Left: Dynamic Handshake State Machine -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">🤝 Dynamic Handshake Protocol</div>
+          <span id="hs-current-badge" class="state-pill mono">BEACON_SCAN</span>
+        </div>
+
+        <div class="handshake-body">
+          <div class="handshake-steps" id="handshake-steps">
+            <div class="hs-step active" data-step="0">
+              <div class="hs-num">1</div>
+              <div>
+                <div class="hs-title mono">BEACON_SCAN → HELLO_REQ</div>
+                <div class="hs-desc">Mule broadcasts SSID/beacon frame with free flash slots, policy ID, and speed estimate.</div>
+              </div>
+            </div>
+            <div class="hs-step" data-step="1">
+              <div class="hs-num">2</div>
+              <div>
+                <div class="hs-title mono">CAP_OFFER</div>
+                <div class="hs-desc">Field node advertises pending P0/P1/P2 packet counts, payload sizes, and min remaining TTL.</div>
+              </div>
+            </div>
+            <div class="hs-step" data-step="2">
+              <div class="hs-num">3</div>
+              <div>
+                <div class="hs-title mono">SCHED_ACK</div>
+                <div class="hs-desc">Mule computes dynamic contact dwell window from RSSI &amp; velocity, granting burst slots.</div>
+              </div>
+            </div>
+            <div class="hs-step" data-step="3">
+              <div class="hs-num">4</div>
+              <div>
+                <div class="hs-title mono">DATA_BURST</div>
+                <div class="hs-desc">Selected packets stream over Wi-Fi UDP/TCP socket ordered by active buffer policy.</div>
+              </div>
+            </div>
+            <div class="hs-step" data-step="4">
+              <div class="hs-num">5</div>
+              <div>
+                <div class="hs-title mono">FLASH_COMMIT &amp; ACK</div>
+                <div class="hs-desc">CRC32 verified, written to LittleFS/NVS ring/priority blocks, and node outbox purged.</div>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 600; margin-bottom: 4px;" class="mono">
+              LATEST HANDSHAKE / TELEMETRY FRAME
+            </div>
+            <div id="handshake-frame" class="handshake-frame-box mono">
+{"state":"BEACON_SCAN","mule":"ESP32-MULE-01","policy":"priority-preemptive","freeSlots":32}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Tabbed Flash Memory Map, Event Log & C++ Firmware -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="tabs" role="tablist">
+            <button class="tab-btn active" data-tab="flash-tab">💾 Flash Memory &amp; Event Log</button>
+            <button class="tab-btn" data-tab="code-tab">⚙️ ESP32 C++ Reference Sketch</button>
+          </div>
+          <span id="flash-wear-badge" class="mono" style="font-size: 0.72rem; color: var(--text-muted);">
+            LittleFS Sectors: 0 writes • 0 erases
+          </span>
+        </div>
+
+        <!-- Tab 1: Flash Map + Event Log -->
+        <div id="flash-tab" class="tab-pane active">
+          <div class="flash-meta">
+            <div class="legend">
+              <span><i class="swatch" style="background: rgba(244,63,94,0.75);"></i> P0 Critical</span>
+              <span><i class="swatch" style="background: rgba(59,130,246,0.75);"></i> P1 Warning</span>
+              <span><i class="swatch" style="background: rgba(148,163,184,0.55);"></i> P2 Telemetry</span>
+              <span><i class="swatch" style="background: #0a101d; border: 1px solid #2d405e;"></i> Free Sector</span>
+            </div>
+            <span id="flash-summary-text" class="mono">0 / 32 slots occupied</span>
+          </div>
+
+          <div id="flash-grid" class="flash-grid" aria-label="ESP32 Flash Memory Slots"></div>
+
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+            <span style="font-size: 0.72rem; font-weight: 600; color: var(--text-muted);" class="mono">
+              PACKET TRANSMISSION, PRIORITIZATION &amp; EVICTION LOG
+            </span>
+            <button id="clear-log-btn" style="padding: 3px 8px; font-size: 0.68rem;">Clear Log</button>
+          </div>
+          <div id="event-log" class="log-box mono"></div>
+        </div>
+
+        <!-- Tab 2: ESP32 C++ Code -->
+        <div id="code-tab" class="tab-pane">
+          <div class="code-toolbar">
+            <span>ESP32 Arduino / LittleFS DTN Mule Firmware (Reference)</span>
+            <button id="copy-code-btn" style="padding: 4px 9px; font-size: 0.7rem;">📋 Copy C++</button>
+          </div>
+          <pre id="cpp-code" class="cpp-code mono">#include &lt;WiFi.h&gt;
+#include &lt;LittleFS.h&gt;
+
+enum Priority : uint8_t { P0_CRIT = 0, P1_WARN = 1, P2_LOG = 2 };
+enum Policy : uint8_t { POL_PRIORITY_PREEMPT = 0, POL_EDF_PRIO = 1, POL_FIFO = 2 };
+enum HandshakeState : uint8_t {
+  HS_BEACON_SCAN, HS_HELLO_REQ, HS_CAP_OFFER, HS_SCHED_ACK, HS_DATA_BURST, HS_FLASH_COMMIT
+};
+
+struct SensorPacket {
+  uint32_t id;
+  uint8_t  nodeId;
+  uint8_t  priority;      // 0 = highest priority
+  uint16_t sizeBytes;
+  uint32_t expiryMs;      // deadline timestamp (ms)
+  uint32_t crc32;
+  char     payload[64];
+};
+
+constexpr size_t MAX_FLASH_SLOTS = 32;
+SensorPacket muleBuffer[MAX_FLASH_SLOTS];
+size_t usedSlots = 0;
+Policy activePolicy = POL_PRIORITY_PREEMPT;
+
+int comparePackets(const void* a, const void* b) {
+  const SensorPacket* pa = (const SensorPacket*)a;
+  const SensorPacket* pb = (const SensorPacket*)b;
+  if (activePolicy == POL_FIFO) {
+    return (pa->id &gt; pb->id) - (pa->id &lt; pb->id);
+  }
+  if (activePolicy == POL_EDF_PRIO) {
+    // Lower score = higher urgency (combines priority and remaining TTL)
+    uint32_t now = millis();
+    int32_t remA = (int32_t)(pa->expiryMs - now);
+    int32_t remB = (int32_t)(pb->expiryMs - now);
+    int32_t scoreA = pa->priority * 10000 + remA;
+    int32_t scoreB = pb->priority * 10000 + remB;
+    return (scoreA &gt; scoreB) - (scoreA &lt; scoreB);
+  }
+  // POL_PRIORITY_PREEMPT: P0 (0) before P1 (1) before P2 (2), then older packet first
+  if (pa->priority != pb->priority) return pa->priority - pb->priority;
+  return (pa->id &gt; pb->id) - (pa->id &lt; pb->id);
+}
+
+bool storePacketToFlash(const SensorPacket&amp; pkt) {
+  if (usedSlots &gt;= MAX_FLASH_SLOTS) {
+    if (activePolicy == POL_FIFO) {
+      // Evict oldest packet (index 0)
+      memmove(&amp;muleBuffer[0], &amp;muleBuffer[1], (MAX_FLASH_SLOTS - 1) * sizeof(SensorPacket));
+      usedSlots--;
+    } else {
+      // Find lowest-value victim slot to evict
+      int victimIdx = -1;
+      for (size_t i = 0; i &lt; MAX_FLASH_SLOTS; i++) {
+        if (muleBuffer[i].priority &gt; pkt.priority) {
+          if (victimIdx == -1 || muleBuffer[i].priority &gt; muleBuffer[victimIdx].priority) {
+            victimIdx = (int)i;
+          }
+        }
+      }
+      if (victimIdx == -1) return false; // Incoming packet is lower/equal priority than all buffered
+      memmove(&amp;muleBuffer[victimIdx], &amp;muleBuffer[victimIdx + 1],
+              (MAX_FLASH_SLOTS - 1 - victimIdx) * sizeof(SensorPacket));
+      usedSlots--;
+    }
+  }
+  muleBuffer[usedSlots++] = pkt;
+  qsort(muleBuffer, usedSlots, sizeof(SensorPacket), comparePackets);
+
+  File f = LittleFS.open("/dtn_queue.bin", FILE_WRITE);
+  if (f) {
+    f.write((uint8_t*)muleBuffer, usedSlots * sizeof(SensorPacket));
+    f.close();
+  }
+  return true;
+}</pre>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast mono"></div>
+
+  <script>
+    (function () {
+      "use strict";
+
+      // =========================================================================
+      // 1. CONFIGURATION & CONSTANTS
+      // =========================================================================
+      const PRIORITIES = {
+        0: { code: "P0", label: "CRIT", weight: 3, css: "p0", slotCss: "slot-p0", color: "#f43f5e", ttlMs: 45000 },
+        1: { code: "P1", label: "WARN", weight: 2, css: "p1", slotCss: "slot-p1", color: "#3b82f6", ttlMs: 32000 },
+        2: { code: "P2", label: "LOG",  weight: 1, css: "p2", slotCss: "slot-p2", color: "#94a3b8", ttlMs: 22000 }
+      };
+
+      const POLICIES = {
+        "priority-preemptive": {
+          name: "Priority-Preemptive",
+          desc: "Strict P0 > P1 > P2 order; evicts lowest-priority flash slot under pressure."
+        },
+        "edf-prio": {
+          name: "Deadline & Priority Weighted (EDF + Prio)",
+          desc: "Ranks packets by urgency score (priority & remaining TTL); evicts least urgent packet."
+        },
+        "fifo": {
+          name: "FIFO (Baseline)",
+          desc: "First-in, first-out transmission & oldest-first drop; starves P0 during short passes."
+        }
+      };
+
+      const HANDSHAKE_LABELS = [
+        "BEACON_SCAN",
+        "CAP_OFFER",
+        "SCHED_ACK",
+        "DATA_BURST",
+        "FLASH_COMMIT & ACK"
+      ];
+
+      // Field Sensor Nodes along corridor (normalized x in [0..1])
+      const INITIAL_NODES = [
+        { id: "NODE-A", name: "Seismic / Flood Gate", xNorm: 0.24, radiusPx: 108, accent: "#f43f5e", queue: [] },
+        { id: "NODE-B", name: "Soil / Weather Station", xNorm: 0.50, radiusPx: 108, accent: "#22d3ee", queue: [] },
+        { id: "NODE-C", name: "Perimeter / Air Quality", xNorm: 0.76, radiusPx: 108, accent: "#a855f7", queue: [] }
+      ];
+
+      const SINK_X_NORM = 0.93;
+      const SINK_RADIUS_PX = 82;
+
+      // =========================================================================
+      // 2. SIMULATION STATE
+      // =========================================================================
+      let nextPacketId = 1;
+      let simTimeMs = 0;
+      let paused = false;
+
+      const state = {
+        policy: "priority-preemptive",
+        speedMult: 0.85,
+        flashCapacity: 32,
+        muleXNorm: 0.08,
+        muleDir: 1, // 1 = moving right toward sink, -1 = returning left
+        linkState: "OUT_OF_RANGE", // SCANNING | HANDSHAKING | TRANSFERRING | COMMITTING_FLASH | OFFLOADING | OUT_OF_RANGE
+        activeNodeId: null,
+        activeRssi: -88,
+        windowRemainingMs: 0,
+        windowTotalMs: 0,
+        handshakeStep: 0,
+        handshakeTimerMs: 0,
+        burstCooldownMs: 0,
+        pendingTransferBatch: [],
+        flash: [], // Array of packet objects stored on ESP32 flash
+        flashWrites: 0,
+        flashErases: 0,
+        stats: {
+          p0Generated: 0,
+          p0Delivered: 0,
+          totalDelivered: 0,
+          totalBytesDelivered: 0,
+          totalDropped: 0,
+          evictedCount: 0,
+          ttlExpiredCount: 0
+        },
+        nodes: [],
+        flyingPackets: [], // { pkt, fromX, fromY, toX, toY, progress, color, label }
+        logs: []
+      };
+
+      // =========================================================================
+      // 3. DOM REFERENCES
+      // =========================================================================
+      const policySelect = document.getElementById("policy-select");
+      const speedSlider = document.getElementById("speed-slider");
+      const speedLabel = document.getElementById("speed-label");
+      const flashCapSlider = document.getElementById("flash-cap-slider");
+      const flashCapLabel = document.getElementById("flash-cap-label");
+      const burstBtn = document.getElementById("burst-btn");
+      const triggerPassBtn = document.getElementById("trigger-pass-btn");
+      const pauseBtn = document.getElementById("pause-btn");
+      const resetBtn = document.getElementById("reset-btn");
+      const clearLogBtn = document.getElementById("clear-log-btn");
+      const copyCodeBtn = document.getElementById("copy-code-btn");
+      const toastEl = document.getElementById("toast");
+
+      const canvas = document.getElementById("corridor-canvas");
+      const ctx = canvas.getContext("2d");
+      const nodeQueuesBar = document.getElementById("node-queues-bar");
+      const flashGridEl = document.getElementById("flash-grid");
+      const eventLogEl = document.getElementById("event-log");
+      const hsBadgeEl = document.getElementById("hs-current-badge");
+      const hsStepsEl = document.getElementById("handshake-steps");
+      const hsFrameEl = document.getElementById("handshake-frame");
+
+      // =========================================================================
+      // 4. PACKET & POLICY ENGINE
+      // =========================================================================
+      function createPacket(nodeId, priority, customTag) {
+        const pMeta = PRIORITIES[priority];
+        const sizeBytes = priority === 0 ? 128 : priority === 1 ? 256 : 512;
+        const pkt = {
+          id: nextPacketId++,
+          nodeId,
+          priority,
+          sizeBytes,
+          createdAtMs: simTimeMs,
+          expiryMs: simTimeMs + pMeta.ttlMs,
+          tag: customTag || (priority === 0 ? "SEISMIC_SPIKE" : priority === 1 ? "MOISTURE_WARN" : "ENV_LOG")
+        };
+        if (priority === 0) {
+          state.stats.p0Generated++;
+        }
+        return pkt;
+      }
+
+      function remainingTtlMs(pkt) {
+        return Math.max(0, pkt.expiryMs - simTimeMs);
+      }
+
+      function urgencyScore(pkt) {
+        // Higher score = transmit/keep first
+        if (state.policy === "priority-preemptive") {
+          return (2 - pkt.priority) * 100000 - pkt.id;
+        }
+        if (state.policy === "edf-prio") {
+          const prioScore = (2 - pkt.priority) * 60000;
+          const ttlUrgency = Math.max(0, 45000 - remainingTtlMs(pkt));
+          return prioScore + ttlUrgency;
+        }
+        // FIFO: earlier packet ID goes first
+        return -pkt.id;
+      }
+
+      function sortQueueByPolicy(packets) {
+        return packets.slice().sort((a, b) => urgencyScore(b) - urgencyScore(a));
+      }
+
+      function recordDrop(reason, pkt) {
+        state.stats.totalDropped++;
+        if (reason === "evict") {
+          state.stats.evictedCount++;
+        } else if (reason === "ttl") {
+          state.stats.ttlExpiredCount++;
+        }
+      }
+
+      function pushLog(kind, text) {
+        const sec = (simTimeMs / 1000).toFixed(1).padStart(5, " ");
+        state.logs.unshift({ sec, kind, text });
+        if (state.logs.length > 140) state.logs.pop();
+      }
+
+      function showToast(msg) {
+        toastEl.textContent = msg;
+        toastEl.classList.add("show");
+        clearTimeout(showToast._t);
+        showToast._t = setTimeout(() => toastEl.classList.remove("show"), 2000);
+      }
+
+      // Store incoming packet into ESP32 Flash using active buffer policy
+      function storePacketOnMuleFlash(pkt) {
+        if (state.flash.length >= state.flashCapacity) {
+          if (state.policy === "fifo") {
+            const evicted = state.flash.shift();
+            recordDrop("evict", evicted);
+            state.flashErases++;
+            pushLog("evict", `[t=${(simTimeMs / 1000).toFixed(1)}s] FIFO EVICT #${evicted.id} (${PRIORITIES[evicted.priority].code}) to make room for #${pkt.id} (${PRIORITIES[pkt.priority].code}).`);
+          } else {
+            // Find lowest-urgency packet in flash
+            let minIdx = 0;
+            for (let i = 1; i < state.flash.length; i++) {
+              if (urgencyScore(state.flash[i]) < urgencyScore(state.flash[minIdx])) {
+                minIdx = i;
+              }
+            }
+            const candidateVictim = state.flash[minIdx];
+            // Only evict if incoming packet is strictly higher urgency than lowest-urgency buffered packet
+            if (urgencyScore(pkt) > urgencyScore(candidateVictim)) {
+              state.flash.splice(minIdx, 1);
+              recordDrop("evict", candidateVictim);
+              state.flashErases++;
+              pushLog("evict", `[t=${(simTimeMs / 1000).toFixed(1)}s] EVICTED #${candidateVictim.id} (${PRIORITIES[candidateVictim.priority].code}, score=${urgencyScore(candidateVictim)}) for #${pkt.id} (${PRIORITIES[pkt.priority].code}, score=${urgencyScore(pkt)}).`);
+            } else {
+              recordDrop("evict", pkt);
+              pushLog("evict", `[t=${(simTimeMs / 1000).toFixed(1)}s] DROPPED incoming #${pkt.id} (${PRIORITIES[pkt.priority].code}): flash full with higher-value packets.`);
+              return false;
+            }
+          }
+        }
+
+        state.flash.push(pkt);
+        state.flashWrites++;
+        return true;
+      }
+
+      // =========================================================================
+      // 5. INITIALIZATION & SCENARIO INJECTION
+      // =========================================================================
+      function resetSimulation() {
+        nextPacketId = 1;
+        simTimeMs = 0;
+        state.muleXNorm = 0.07;
+        state.muleDir = 1;
+        state.linkState = "OUT_OF_RANGE";
+        state.activeNodeId = null;
+        state.activeRssi = -88;
+        state.windowRemainingMs = 0;
+        state.windowTotalMs = 0;
+        state.handshakeStep = 0;
+        state.handshakeTimerMs = 0;
+        state.burstCooldownMs = 0;
+        state.pendingTransferBatch = [];
+        state.flash = [];
+        state.flashWrites = 0;
+        state.flashErases = 0;
+        state.flyingPackets = [];
+        state.logs = [];
+        state.stats = {
+          p0Generated: 0,
+          p0Delivered: 0,
+          totalDelivered: 0,
+          totalBytesDelivered: 0,
+          totalDropped: 0,
+          evictedCount: 0,
+          ttlExpiredCount: 0
+        };
+
+        state.nodes = INITIAL_NODES.map((n) => ({
+          ...n,
+          queue: []
+        }));
+
+        // Seed initial packets across field nodes
+        for (const node of state.nodes) {
+          node.queue.push(createPacket(node.id, 2, "PERIODIC_LOG"));
+          node.queue.push(createPacket(node.id, 1, "THRESHOLD_WARN"));
+          node.queue.push(createPacket(node.id, 0, "CRITICAL_ALERT"));
+        }
+
+        pushLog("hs", `[t=0.0s] Simulation initialized. Policy=${POLICIES[state.policy].name}, FlashSlots=${state.flashCapacity}.`);
+        renderAllUI();
+      }
+
+      function injectFloodBurst() {
+        // Flood low-priority packets plus critical alerts so buffer pressure & eviction are clearly visible
+        for (const node of state.nodes) {
+          for (let i = 0; i < 6; i++) {
+            if (node.queue.length < 18) {
+              node.queue.push(createPacket(node.id, 2, "BULK_TELEMETRY"));
+            }
+          }
+          if (node.queue.length < 18) {
+            node.queue.push(createPacket(node.id, 1, "DRIFT_WARN"));
+          }
+          if (node.queue.length < 18) {
+            node.queue.push(createPacket(node.id, 0, "EMERGENCY_TRIG"));
+          }
+        }
+        pushLog("hs", `[t=${(simTimeMs / 1000).toFixed(1)}s] ⚡ Flood injected across field nodes (+18 P2, +3 P1, +3 P0).`);
+        showToast("Burst / Low-Prio Flood injected into field nodes!");
+        renderAllUI();
+      }
+
+      function triggerMulePassNow() {
+        // Find next node ahead in mule's direction, or wrap around
+        const aheadNodes = state.nodes.filter((n) =>
+          state.muleDir === 1 ? n.xNorm > state.muleXNorm + 0.03 : n.xNorm < state.muleXNorm - 0.03
+        );
+        if (aheadNodes.length > 0) {
+          aheadNodes.sort((a, b) => Math.abs(a.xNorm - state.muleXNorm) - Math.abs(b.xNorm - state.muleXNorm));
+          state.muleXNorm = Math.max(0.05, Math.min(0.95, aheadNodes[0].xNorm - state.muleDir * 0.04));
+        } else {
+          // Move toward Sink or reset pass
+          state.muleDir = state.muleXNorm < SINK_X_NORM ? 1 : -1;
+          state.muleXNorm = state.muleDir === 1 ? SINK_X_NORM - 0.04 : 0.28;
+        }
+        pushLog("hs", `[t=${(simTimeMs / 1000).toFixed(1)}s] 📡 Triggered immediate Wi-Fi pass alignment.`);
+        showToast("Mule positioned at next contact window");
+      }
+
+      // =========================================================================
+      // 6. HANDSHAKE, TRANSFER & OFFLOAD LOGIC
+      // =========================================================================
+      function computeRssiFromDistancePx(distPx, radiusPx) {
+        const ratio = Math.max(0, Math.min(1, distPx / radiusPx));
+        return Math.round(-44 - ratio * 44); // -44 dBm (close) to -88 dBm (edge)
+      }
+
+      function estimateContactWindowMs(distPx, radiusPx, speedMult) {
+        const chordFactor = Math.max(0.25, Math.sqrt(Math.max(0.05, 1 - (distPx / radiusPx) ** 2)));
+        return Math.round((4200 * chordFactor) / Math.max(0.4, speedMult));
+      }
+
+      function beginHandshake(node, distPx) {
+        state.activeNodeId = node.id;
+        state.linkState = "HANDSHAKING";
+        state.handshakeStep = 0;
+        state.handshakeTimerMs = 0;
+        state.windowTotalMs = estimateContactWindowMs(distPx, node.radiusPx, state.speedMult);
+        state.windowRemainingMs = state.windowTotalMs;
+
+        const pCounts = { p0: 0, p1: 0, p2: 0 };
+        node.queue.forEach((p) => {
+          if (p.priority === 0) pCounts.p0++;
+          else if (p.priority === 1) pCounts.p1++;
+          else pCounts.p2++;
+        });
+
+        hsFrameEl.textContent = JSON.stringify({
+          step: "1_BEACON_HELLO",
+          mule: "ESP32-MULE-01",
+          node: node.id,
+          policy: state.policy,
+          freeFlashSlots: state.flashCapacity - state.flash.length,
+          offeredQueue: pCounts,
+          estWindowMs: state.windowTotalMs
+        }, null, 2);
+
+        pushLog("hs", `[t=${(simTimeMs / 1000).toFixed(1)}s] Handshake started with ${node.id} (RSSI ${state.activeRssi} dBm, est window ${state.windowTotalMs}ms).`);
+      }
+
+      function advanceHandshake(dtMs, node) {
+        state.handshakeTimerMs += dtMs;
+        const stepDuration = 220; // ms per handshake stage
+
+        const newStep = Math.min(3, Math.floor(state.handshakeTimerMs / stepDuration));
+        if (newStep !== state.handshakeStep) {
+          state.handshakeStep = newStep;
+          if (newStep === 1) {
+            hsFrameEl.textContent = JSON.stringify({
+              step: "2_CAP_OFFER",
+              from: node.id,
+              queuedPackets: node.queue.length,
+              topUrgency: node.queue.length ? sortQueueByPolicy(node.queue)[0].tag : "NONE"
+            }, null, 2);
+          } else if (newStep === 2) {
+            const maxBurst = Math.max(1, Math.min(8, Math.floor(state.windowRemainingMs / 450) + 2));
+            hsFrameEl.textContent = JSON.stringify({
+              step: "3_SCHED_ACK",
+              allocatedBurstSlots: maxBurst,
+              windowRemainingMs: Math.round(state.windowRemainingMs),
+              ordering: state.policy
+            }, null, 2);
+          } else if (newStep === 3) {
+            // Select packets to stream in DATA_BURST based on active buffer policy
+            const ordered = sortQueueByPolicy(node.queue);
+            const burstLimit = Math.max(1, Math.min(6, ordered.length));
+            state.pendingTransferBatch = ordered.slice(0, burstLimit);
+            state.burstCooldownMs = 0;
+            state.linkState = "TRANSFERRING";
+
+            hsFrameEl.textContent = JSON.stringify({
+              step: "4_DATA_BURST",
+              txOrderIds: state.pendingTransferBatch.map((p) => `#${p.id}(P${p.priority})`)
+            }, null, 2);
+          }
+        }
+      }
+
+      function stepDataBurst(dtMs, node) {
+        state.burstCooldownMs -= dtMs;
+        if (state.burstCooldownMs <= 0 && state.pendingTransferBatch.length > 0 && state.windowRemainingMs > 80) {
+          const pkt = state.pendingTransferBatch.shift();
+          // Remove from node queue if still present
+          const qIdx = node.queue.findIndex((item) => item.id === pkt.id);
+          if (qIdx !== -1) {
+            node.queue.splice(qIdx, 1);
+          }
+
+          // Spawn flying packet visual on canvas
+          const w = canvas.clientWidth;
+          const h = canvas.clientHeight;
+          const mulePxX = state.muleXNorm * w;
+          const mulePxY = h * 0.56;
+          const nodePxX = node.xNorm * w;
+          const nodePxY = h * 0.25;
+
+          state.flyingPackets.push({
+            pkt,
+            fromX: nodePxX,
+            fromY: nodePxY,
+            toX: mulePxX,
+            toY: mulePxY,
+            progress: 0,
+            color: PRIORITIES[pkt.priority].color,
+            label: `${PRIORITIES[pkt.priority].code}#${pkt.id}`,
+            onArrive: () => {
+              state.linkState = "COMMITTING_FLASH";
+              state.handshakeStep = 4;
+              const stored = storePacketOnMuleFlash(pkt);
+              if (stored) {
+                pushLog(
+                  "tx",
+                  `[t=${(simTimeMs / 1000).toFixed(1)}s] RX & FLASH_COMMIT #${pkt.id} [${PRIORITIES[pkt.priority].code} ${pkt.tag}] from ${node.id} (${pkt.sizeBytes}B).`
+                );
+              }
+              hsFrameEl.textContent = JSON.stringify({
+                step: "5_FLASH_COMMIT_ACK",
+                packetId: pkt.id,
+                priority: `P${pkt.priority}`,
+                storedOnFlash: stored,
+                flashUsed: `${state.flash.length}/${state.flashCapacity}`
+              }, null, 2);
+            }
+          });
+
+          state.burstCooldownMs = 260;
+        }
+      }
+
+      function offloadToSink(dtMs, sinkPxX, sinkPxY) {
+        state.linkState = "OFFLOADING";
+        state.burstCooldownMs -= dtMs;
+        if (state.burstCooldownMs <= 0 && state.flash.length > 0) {
+          // Offload highest urgency packets first
+          const orderedFlash = sortQueueByPolicy(state.flash);
+          const pkt = orderedFlash[0];
+          const idx = state.flash.findIndex((p) => p.id === pkt.id);
+          if (idx !== -1) state.flash.splice(idx, 1);
+
+          const w = canvas.clientWidth;
+          const h = canvas.clientHeight;
+          const mulePxX = state.muleXNorm * w;
+          const mulePxY = h * 0.56;
+
+          state.flyingPackets.push({
+            pkt,
+            fromX: mulePxX,
+            fromY: mulePxY,
+            toX: sinkPxX,
+            toY: sinkPxY,
+            progress: 0,
+            color: "#10b981",
+            label: `SINK#${pkt.id}`,
+            onArrive: () => {
+              state.stats.totalDelivered++;
+              state.stats.totalBytesDelivered += pkt.sizeBytes;
+              if (pkt.priority === 0) {
+                state.stats.p0Delivered++;
+              }
+              pushLog(
+                "sink",
+                `[t=${(simTimeMs / 1000).toFixed(1)}s] 🏛️ OFFLOADED #${pkt.id} [${PRIORITIES[pkt.priority].code} ${pkt.tag}] to Base Sink.`
+              );
+            }
+          });
+
+          state.burstCooldownMs = 150;
+        }
+      }
+
+      // =========================================================================
+      // 7. MAIN SIMULATION STEP & 60FPS RENDER LOOP
+      // =========================================================================
+      function updateSimulation(dtMs) {
+        if (paused) return;
+
+        simTimeMs += dtMs;
+
+        // 1. Expire stale packets in node queues (TTL check)
+        for (const node of state.nodes) {
+          const alive = [];
+          for (const pkt of node.queue) {
+            if (simTimeMs >= pkt.expiryMs) {
+              recordDrop("ttl", pkt);
+              pushLog("evict", `[t=${(simTimeMs / 1000).toFixed(1)}s] TTL EXPIRED on ${node.id} pkt #${pkt.id} (${PRIORITIES[pkt.priority].code} ${pkt.tag}).`);
+            } else {
+              alive.push(pkt);
+            }
+          }
+          node.queue = alive;
+        }
+
+        // 2. Periodic autonomous field sensor generation
+        state.burstCooldownMs_gen = (state.burstCooldownMs_gen || 0) - dtMs;
+        if (state.burstCooldownMs_gen <= 0) {
+          state.burstCooldownMs_gen = 1650;
+          for (const node of state.nodes) {
+            if (node.queue.length < 16) {
+              // Mix of P2 logs, P1 warnings, and occasional P0 critical events
+              const r = Math.random();
+              const prio = r < 0.22 ? 0 : r < 0.52 ? 1 : 2;
+              node.queue.push(createPacket(node.id, prio));
+            }
+          }
+        }
+
+        // 3. Move ESP32 Mule along corridor
+        const baseSpeedNormPerSec = 0.055 * state.speedMult;
+        state.muleXNorm += state.muleDir * baseSpeedNormPerSec * (dtMs / 1000);
+        if (state.muleXNorm >= 0.96) {
+          state.muleXNorm = 0.96;
+          state.muleDir = -1;
+        } else if (state.muleXNorm <= 0.05) {
+          state.muleXNorm = 0.05;
+          state.muleDir = 1;
+        }
+
+        // 4. Check Wi-Fi coverage with field nodes & base sink
+        const w = Math.max(320, canvas.clientWidth);
+        const h = Math.max(220, canvas.clientHeight);
+        const mulePxX = state.muleXNorm * w;
+        const mulePxY = h * 0.56;
+        const sinkPxX = SINK_X_NORM * w;
+        const sinkPxY = h * 0.25;
+        const distToSink = Math.hypot(mulePxX - sinkPxX, mulePxY - sinkPxY);
+
+        let closestNode = null;
+        let closestDist = Infinity;
+        for (const node of state.nodes) {
+          const nPxX = node.xNorm * w;
+          const nPxY = h * 0.25;
+          const d = Math.hypot(mulePxX - nPxX, mulePxY - nPxY);
+          if (d <= node.radiusPx && d < closestDist) {
+            closestNode = node;
+            closestDist = d;
+          }
+        }
+
+        if (closestNode && closestNode.queue.length > 0) {
+          state.activeRssi = computeRssiFromDistancePx(closestDist, closestNode.radiusPx);
+          state.windowRemainingMs = Math.max(0, state.windowRemainingMs - dtMs);
+
+          if (state.activeNodeId !== closestNode.id || state.linkState === "OUT_OF_RANGE") {
+            beginHandshake(closestNode, closestDist);
+          }
+
+          if (state.linkState === "HANDSHAKING") {
+            advanceHandshake(dtMs, closestNode);
+          } else if (state.linkState === "TRANSFERRING" || state.linkState === "COMMITTING_FLASH") {
+            stepDataBurst(dtMs, closestNode);
+            if (state.pendingTransferBatch.length === 0 && closestNode.queue.length > 0 && state.windowRemainingMs > 400) {
+              const ordered = sortQueueByPolicy(closestNode.queue);
+              state.pendingTransferBatch = ordered.slice(0, 3);
+              state.linkState = "TRANSFERRING";
+            }
+          }
+        } else if (distToSink <= SINK_RADIUS_PX && state.flash.length > 0) {
+          state.activeNodeId = "BASE-SINK";
+          state.activeRssi = computeRssiFromDistancePx(distToSink, SINK_RADIUS_PX);
+          state.windowRemainingMs = Math.max(0, state.windowRemainingMs - dtMs);
+          offloadToSink(dtMs, sinkPxX, sinkPxY);
+        } else {
+          state.activeNodeId = null;
+          state.linkState = "OUT_OF_RANGE";
+          state.activeRssi = -88;
+          state.windowRemainingMs = 0;
+          state.pendingTransferBatch = [];
+          state.handshakeStep = 0;
+        }
+
+        // 5. Advance flying packet animations
+        const stillFlying = [];
+        for (const fp of state.flyingPackets) {
+          fp.progress += dtMs / 320;
+          if (fp.progress >= 1) {
+            if (typeof fp.onArrive === "function") fp.onArrive();
+          } else {
+            stillFlying.push(fp);
+          }
+        }
+        state.flyingPackets = stillFlying;
+      }
+
+      function drawCorridorCanvas() {
+        const dpr = window.devicePixelRatio || 1;
+        const w = canvas.clientWidth;
+        const h = canvas.clientHeight;
+        if (canvas.width !== Math.floor(w * dpr) || canvas.height !== Math.floor(h * dpr)) {
+          canvas.width = Math.floor(w * dpr);
+          canvas.height = Math.floor(h * dpr);
+        }
+
+        ctx.save();
+        ctx.scale(dpr, dpr);
+        ctx.clearRect(0, 0, w, h);
+
+        // Subtle telemetry grid
+        ctx.strokeStyle = "rgba(51, 65, 85, 0.28)";
+        ctx.lineWidth = 1;
+        for (let x = 0; x < w; x += 40) {
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, h);
+          ctx.stroke();
+        }
+        for (let y = 0; y < h; y += 40) {
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(w, y);
+          ctx.stroke();
+        }
+
+        // Road / Mule corridor track
+        const trackY = h * 0.62;
+        ctx.strokeStyle = "#1e293b";
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.moveTo(w * 0.05, trackY);
+        ctx.lineTo(w * 0.96, trackY);
+        ctx.stroke();
+
+        ctx.setLineDash([8, 8]);
+        ctx.strokeStyle = "#475569";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(w * 0.05, trackY);
+        ctx.lineTo(w * 0.96, trackY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        const nodeY = h * 0.25;
+        const muleX = state.muleXNorm * w;
+        const muleY = trackY;
+
+        // Draw Field Sensor Nodes & Wi-Fi Coverage Circles
+        for (const node of state.nodes) {
+          const nx = node.xNorm * w;
+          const isActive = state.activeNodeId === node.id;
+
+          // Wi-Fi radius circle
+          ctx.beginPath();
+          ctx.arc(nx, nodeY, node.radiusPx, 0, Math.PI * 2);
+          ctx.fillStyle = isActive ? "rgba(34, 211, 238, 0.10)" : "rgba(148, 163, 184, 0.04)";
+          ctx.fill();
+          ctx.lineWidth = isActive ? 2 : 1;
+          ctx.setLineDash([5, 5]);
+          ctx.strokeStyle = isActive ? "#22d3ee" : "rgba(148, 163, 184, 0.28)";
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          // Active link beam to mule
+          if (isActive) {
+            ctx.beginPath();
+            ctx.moveTo(nx, nodeY);
+            ctx.lineTo(muleX, muleY);
+            ctx.strokeStyle = "rgba(34, 211, 238, 0.7)";
+            ctx.lineWidth = 2;
+            ctx.stroke();
+          }
+
+          // Node tower marker
+          ctx.beginPath();
+          ctx.arc(nx, nodeY, 16, 0, Math.PI * 2);
+          ctx.fillStyle = "#111827";
+          ctx.fill();
+          ctx.lineWidth = 2.5;
+          ctx.strokeStyle = node.accent;
+          ctx.stroke();
+
+          ctx.fillStyle = "#f8fafc";
+          ctx.font = "bold 10px monospace";
+          ctx.textAlign = "center";
+          ctx.fillText(node.id.replace("NODE-", ""), nx, nodeY + 3);
+
+          ctx.fillStyle = "#cbd5e1";
+          ctx.font = "bold 11px sans-serif";
+          ctx.fillText(node.id, nx, nodeY - 24);
+
+          ctx.fillStyle = "#94a3b8";
+          ctx.font = "10px monospace";
+          ctx.fillText(`Q:${node.queue.length} pkts`, nx, nodeY + 30);
+        }
+
+        // Draw Base Sink / Gateway on right
+        const sinkX = SINK_X_NORM * w;
+        const sinkY = nodeY;
+        const sinkActive = state.activeNodeId === "BASE-SINK";
+
+        ctx.beginPath();
+        ctx.arc(sinkX, sinkY, SINK_RADIUS_PX, 0, Math.PI * 2);
+        ctx.fillStyle = sinkActive ? "rgba(16, 185, 129, 0.12)" : "rgba(16, 185, 129, 0.04)";
+        ctx.fill();
+        ctx.lineWidth = sinkActive ? 2 : 1;
+        ctx.setLineDash([4, 4]);
+        ctx.strokeStyle = sinkActive ? "#10b981" : "rgba(16, 185, 129, 0.35)";
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.fillStyle = "#10b981";
+        ctx.font = "bold 11px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("🏛️ BASE SINK", sinkX, sinkY - 20);
+        ctx.fillStyle = "#a7f3d0";
+        ctx.font = "10px monospace";
+        ctx.fillText(`Delivered: ${state.stats.totalDelivered}`, sinkX, sinkY + 28);
+
+        // Draw Mobile ESP32 Mule (🚗)
+        ctx.fillStyle = "rgba(15, 23, 42, 0.92)";
+        ctx.strokeStyle = "#22d3ee";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(muleX - 56, muleY - 22, 112, 42, 10);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.font = "18px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(state.muleDir === 1 ? "🚗→" : "←🚗", muleX - 24, muleY + 5);
+
+        ctx.fillStyle = "#f8fafc";
+        ctx.font = "bold 10px monospace";
+        ctx.textAlign = "left";
+        ctx.fillText("ESP32", muleX - 2, muleY - 4);
+        ctx.fillStyle = "#22d3ee";
+        ctx.font = "9px monospace";
+        ctx.fillText(`${state.flash.length}/${state.flashCapacity} fl`, muleX - 2, muleY + 10);
+
+        // Link state pill above mule
+        ctx.fillStyle = "#94a3b8";
+        ctx.font = "10px monospace";
+        ctx.textAlign = "center";
+        ctx.fillText(
+          `${state.linkState} • ${state.activeRssi}dBm`,
+          muleX,
+          muleY + 34
+        );
+
+        // Draw flying packets
+        for (const fp of state.flyingPackets) {
+          const px = fp.fromX + (fp.toX - fp.fromX) * fp.progress;
+          const py = fp.fromY + (fp.toY - fp.fromY) * fp.progress;
+          ctx.beginPath();
+          ctx.arc(px, py, 10, 0, Math.PI * 2);
+          ctx.fillStyle = fp.color;
+          ctx.fill();
+          ctx.fillStyle = "#090d16";
+          ctx.font = "bold 8px monospace";
+          ctx.textAlign = "center";
+          ctx.fillText(fp.label.split("#")[0], px, py + 3);
+        }
+
+        ctx.restore();
+      }
+
+      // =========================================================================
+      // 8. UI RENDERING (KPIS, QUEUES, HANDSHAKE, FLASH MAP, LOGS)
+      // =========================================================================
+      function renderAllUI() {
+        // KPIs
+        const p0Rate =
+          state.stats.p0Generated > 0
+            ? ((state.stats.p0Delivered / state.stats.p0Generated) * 100).toFixed(1)
+            : "100.0";
+        document.getElementById("kpi-p0-rate").textContent = `${p0Rate}%`;
+        document.getElementById("kpi-p0-detail").textContent =
+          `${state.stats.p0Delivered} delivered / ${state.stats.p0Generated} generated`;
+
+        document.getElementById("kpi-delivered").textContent = String(state.stats.totalDelivered);
+        document.getElementById("kpi-bytes").textContent =
+          `${(state.stats.totalBytesDelivered / 1024).toFixed(2)} KB offloaded`;
+
+        document.getElementById("kpi-dropped").textContent = String(state.stats.totalDropped);
+        document.getElementById("kpi-drop-detail").textContent =
+          `${state.stats.evictedCount} evicted • ${state.stats.ttlExpiredCount} TTL expired`;
+
+        const flashPct = ((state.flash.length / state.flashCapacity) * 100).toFixed(1);
+        document.getElementById("kpi-flash").textContent = `${flashPct}%`;
+        document.getElementById("kpi-flash-detail").textContent =
+          `${state.flash.length} / ${state.flashCapacity} slots • ${state.flashErases} erases`;
+
+        document.getElementById("kpi-link").textContent =
+          `${state.activeRssi} dBm • ${Math.round(state.windowRemainingMs)} ms`;
+        document.getElementById("kpi-link-state").textContent =
+          `${state.linkState}${state.activeNodeId ? " (" + state.activeNodeId + ")" : ""}`;
+
+        // Field Node Outbox Cards
+        nodeQueuesBar.innerHTML = state.nodes
+          .map((node) => {
+            const ordered = sortQueueByPolicy(node.queue);
+            const chips = ordered
+              .slice(0, 10)
+              .map((pkt) => {
+                const m = PRIORITIES[pkt.priority];
+                const ttlSec = (remainingTtlMs(pkt) / 1000).toFixed(1);
+                return `<span class="pkt-chip ${m.css} mono" title="${pkt.tag} (${pkt.sizeBytes}B)">${m.code}#${pkt.id} ${ttlSec}s</span>`;
+              })
+              .join("");
+            const extra = ordered.length > 10 ? `<span class="pkt-chip p2 mono">+${ordered.length - 10}</span>` : "";
+
+            return `
+              <div class="node-box">
+                <div class="node-box-top">
+                  <span>${node.id} • <span style="color: var(--text-muted); font-weight: 400;">${node.name}</span></span>
+                  <button onclick="window.__injectCrit('${node.id}')" style="padding: 2px 7px; font-size: 0.66rem;" class="btn-danger">+ P0 Alert</button>
+                </div>
+                <div class="pkt-chips">${chips || '<span style="font-size: 0.7rem; color: var(--text-dim);">Outbox empty</span>'}${extra}</div>
+              </div>
+            `;
+          })
+          .join("");
+
+        // Handshake Steps
+        hsBadgeEl.textContent = HANDSHAKE_LABELS[state.handshakeStep] || state.linkState;
+        const stepEls = hsStepsEl.querySelectorAll(".hs-step");
+        stepEls.forEach((el, idx) => {
+          el.classList.remove("active", "done");
+          if (state.linkState === "OUT_OF_RANGE") {
+            if (idx === 0) el.classList.add("active");
+          } else if (idx < state.handshakeStep) {
+            el.classList.add("done");
+          } else if (idx === state.handshakeStep) {
+            el.classList.add("active");
+          }
+        });
+
+        // Flash Memory Grid
+        document.getElementById("flash-summary-text").textContent =
+          `${state.flash.length} / ${state.flashCapacity} slots occupied (${POLICIES[state.policy].name})`;
+        document.getElementById("flash-wear-badge").textContent =
+          `LittleFS Sectors: ${state.flashWrites} writes • ${state.flashErases} erases`;
+
+        const sortedFlash = sortQueueByPolicy(state.flash);
+        let gridHtml = "";
+        for (let i = 0; i < state.flashCapacity; i++) {
+          const pkt = sortedFlash[i];
+          if (pkt) {
+            const m = PRIORITIES[pkt.priority];
+            gridHtml += `
+              <div class="flash-slot ${m.slotCss} mono" title="Slot ${i + 1}: Pkt #${pkt.id} [${m.code} ${pkt.tag}]">
+                <span>${m.code}</span>
+                <small>#${pkt.id}</small>
+              </div>
+            `;
+          } else {
+            gridHtml += `
+              <div class="flash-slot mono" title="Slot ${i + 1}: Free">
+                <span style="color: var(--text-dim);">—</span>
+                <small>${i + 1}</small>
+              </div>
+            `;
+          }
+        }
+        flashGridEl.innerHTML = gridHtml;
+
+        // Event Log
+        eventLogEl.innerHTML = state.logs
+          .map((l) => `<div class="log-line log-${l.kind}">[${l.sec}s] ${l.text}</div>`)
+          .join("");
+      }
+
+      // Expose helper for inline node button
+      window.__injectCrit = function (nodeId) {
+        const node = state.nodes.find((n) => n.id === nodeId);
+        if (!node) return;
+        const pkt = createPacket(node.id, 0, "MANUAL_CRIT_EVENT");
+        node.queue.push(pkt);
+        pushLog("tx", `[t=${(simTimeMs / 1000).toFixed(1)}s] 🚨 Injected P0 Critical packet #${pkt.id} at ${node.id}.`);
+        renderAllUI();
+      };
+
+      // =========================================================================
+      // 9. EVENT LISTENERS & LOOP
+      // =========================================================================
+      policySelect.addEventListener("change", (e) => {
+        state.policy = e.target.value;
+        pushLog("hs", `[t=${(simTimeMs / 1000).toFixed(1)}s] Switched buffer policy → ${POLICIES[state.policy].name}.`);
+        showToast(`Policy: ${POLICIES[state.policy].name}`);
+        renderAllUI();
+      });
+
+      speedSlider.addEventListener("input", (e) => {
+        state.speedMult = Number(e.target.value) / 100;
+        speedLabel.textContent = `${state.speedMult.toFixed(2)}x`;
+      });
+
+      flashCapSlider.addEventListener("input", (e) => {
+        state.flashCapacity = Number(e.target.value);
+        flashCapLabel.textContent = String(state.flashCapacity);
+        while (state.flash.length > state.flashCapacity) {
+          const ordered = sortQueueByPolicy(state.flash);
+          const victim = ordered[ordered.length - 1];
+          const idx = state.flash.findIndex((p) => p.id === victim.id);
+          if (idx !== -1) state.flash.splice(idx, 1);
+          recordDrop("evict", victim);
+          state.flashErases++;
+        }
+        renderAllUI();
+      });
+
+      burstBtn.addEventListener("click", injectFloodBurst);
+      triggerPassBtn.addEventListener("click", triggerMulePassNow);
+
+      pauseBtn.addEventListener("click", () => {
+        paused = !paused;
+        pauseBtn.textContent = paused ? "▶ Resume" : "⏸ Pause";
+        showToast(paused ? "Simulation paused" : "Simulation resumed");
+      });
+
+      resetBtn.addEventListener("click", () => {
+        resetSimulation();
+        showToast("Simulation reset");
+      });
+
+      clearLogBtn.addEventListener("click", () => {
+        state.logs = [];
+        renderAllUI();
+      });
+
+      // Canvas click: trigger a P0 critical packet on nearest field node
+      canvas.addEventListener("click", (ev) => {
+        const rect = canvas.getBoundingClientRect();
+        const clickX = ev.clientX - rect.left;
+        const w = rect.width || 1;
+        const xNorm = clickX / w;
+        let nearest = state.nodes[0];
+        let bestDist = Infinity;
+        for (const n of state.nodes) {
+          const d = Math.abs(n.xNorm - xNorm);
+          if (d < bestDist) {
+            bestDist = d;
+            nearest = n;
+          }
+        }
+        if (nearest && bestDist < 0.14) {
+          window.__injectCrit(nearest.id);
+        }
+      });
+
+      // Tabs
+      document.querySelectorAll(".tab-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
+          document.querySelectorAll(".tab-pane").forEach((p) => p.classList.remove("active"));
+          btn.classList.add("active");
+          const targetId = btn.getAttribute("data-tab");
+          document.getElementById(targetId).classList.add("active");
+        });
+      });
+
+      // Copy C++ sketch without alert()
+      copyCodeBtn.addEventListener("click", () => {
+        const codeText = document.getElementById("cpp-code").textContent;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(codeText).then(
+            () => showToast("Copied ESP32 C++ sketch to clipboard"),
+            () => fallbackCopy(codeText)
+          );
+        } else {
+          fallbackCopy(codeText);
+        }
+      });
+
+      function fallbackCopy(text) {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        try {
+          document.execCommand("copy");
+          showToast("Copied ESP32 C++ sketch to clipboard");
+        } catch (_e) {
+          showToast("Select code manually to copy");
+        }
+        document.body.removeChild(ta);
+      }
+
+      window.addEventListener("resize", () => {
+        drawCorridorCanvas();
+      });
+
+      let lastTimestamp = performance.now();
+      let uiAccumMs = 0;
+
+      function loop(now) {
+        const dtMs = Math.min(100, Math.max(0, now - lastTimestamp));
+        lastTimestamp = now;
+
+        updateSimulation(dtMs);
+        drawCorridorCanvas();
+
+        uiAccumMs += dtMs;
+        if (uiAccumMs >= 140) {
+          uiAccumMs = 0;
+          renderAllUI();
+        }
+
+        requestAnimationFrame(loop);
+      }
+
+      resetSimulation();
+      requestAnimationFrame(loop);
+    })();
+  </script>
+</body>
+</html>

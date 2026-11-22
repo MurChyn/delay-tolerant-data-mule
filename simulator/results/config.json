@@ -1,0 +1,26 @@
+{
+  "cycles": 32,
+  "seeds": 12,
+  "cycle_sec": 300.0,
+  "sensor_rates": [
+    0.15,
+    0.25,
+    0.35,
+    0.45,
+    0.6,
+    0.3
+  ],
+  "high_prob": 0.25,
+  "sensor_capacity": 128,
+  "flash_capacity": 256,
+  "unload_every_cycles": 1,
+  "packet_bytes": 256,
+  "link_bps": 32000.0,
+  "contact_min": 2.0,
+  "contact_max": 5.0,
+  "ttl_high": 320.0,
+  "ttl_low": 3600.0,
+  "aging_tau": 120.0,
+  "hp_guard_slots": 32,
+  "contact_duration_scale": 1.0
+}
